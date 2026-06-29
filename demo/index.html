@@ -97,13 +97,113 @@
   <script type="module">
     import { marked } from 'https://cdn.jsdelivr.net/npm/marked@15/lib/marked.esm.js';
 
-    // Inline the bridge extension (until published to npm)
+    // SVG utilities and renderers (extracted from bridge-forge sidecar-bridge-render)
+    const SUIT_COLOR = { S: '#1d4ed8', H: '#dc2626', D: '#ea580c', C: '#111827' };
+    const SUIT_GLYPH = { S: '♠', H: '♥', D: '♦', C: '♣' };
+    
+    function x(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function handWidth(hand, label) {
+      const suits = ['S', 'H', 'D', 'C'];
+      const maxCards = Math.max(...suits.map(s => (hand[s] || '—').length));
+      const textW = 12 + 7.2 + maxCards * 7.2;
+      const labelW = label.length * 7;
+      return Math.ceil(Math.max(textW, labelW) + 7);
+    }
+
+    function handElements(ox, oy, hand, label, w, h = 90) {
+      const width = w ?? handWidth(hand, label);
+      const suits = ['S', 'H', 'D', 'C'];
+      const rowH = Math.floor((h - 22) / 4);
+      const rows = suits.map((s, i) => {
+        const ry = oy + 22 + i * rowH + rowH - 4;
+        const cards = hand[s] || '—';
+        return `  <text x="${ox + 7}" y="${ry}" font-family="'Courier New',monospace" font-size="12">` +
+          `<tspan fill="${SUIT_COLOR[s]}" font-weight="bold">${SUIT_GLYPH[s]}</tspan>` +
+          `<tspan fill="#374151"> ${x(cards)}</tspan></text>`;
+      }).join('\n');
+      return `  <rect x="${ox}" y="${oy}" width="${width}" height="${h}" rx="5" fill="white" stroke="#e2e8f0" stroke-width="1"/>\n` +
+        `  <text x="${ox + 7}" y="${oy + 14}" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#111827">${x(label)}</text>\n` + rows;
+    }
+
+    function renderHandSvg(input) {
+      const label = input.label ?? 'Hand';
+      const H = 90;
+      const W = Math.max(90, 50 + (input.cards.S.length * 7.2 + 12));
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" class="bridge-hand-svg" style="border: 1px solid #e5e7eb; border-radius: 4px;">\n` +
+        handElements(0, 0, input.cards, label, W, H) + '\n</svg>';
+    }
+
+    function renderDealSvg(input) {
+      const HW = 155, HH = 90, gapX = 30, gapY = 12, labelH = 18;
+      const row2W = HW * 2 + gapX;
+      const northX = Math.round((row2W - HW) / 2);
+      const northY = labelH, row2Y = northY + HH + gapY, southY = row2Y + HH + gapY;
+      const totalW = row2W, totalH = southY + HH + 8;
+      const labelParts = [];
+      if (input.label) labelParts.push(x(input.label));
+      if (input.dealer) labelParts.push(`Dealer: ${x(input.dealer)}`);
+      const titleEl = labelParts.length ? `  <text x="${totalW / 2}" y="13" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="middle">${labelParts.join(' · ')}</text>` : '';
+      return [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" class="bridge-deal-svg" style="border: 1px solid #e5e7eb; border-radius: 4px;">`,
+        titleEl,
+        handElements(northX, northY, input.hands.North, 'North', HW, HH),
+        handElements(0, row2Y, input.hands.West, 'West', HW, HH),
+        handElements(HW + gapX, row2Y, input.hands.East, 'East', HW, HH),
+        handElements(northX, southY, input.hands.South, 'South', HW, HH),
+        '</svg>'
+      ].filter(Boolean).join('\n');
+    }
+
+    function renderBiddingSvg(input) {
+      const rounds = input.rounds ?? [];
+      const COLS = [{w: 46}, {w: 46}, {w: 46}, {w: 46}];
+      const TOTAL_W = 184, HEADER_H = 22, ROW_H = 18;
+      const labelH = (input.label || input.dealer) ? 18 : 0;
+      const totalH = labelH + HEADER_H + rounds.length * ROW_H + 2;
+      const labelParts = [];
+      if (input.label) labelParts.push(x(input.label));
+      if (input.dealer) labelParts.push(`Dealer: ${x(input.dealer)}`);
+      const titleEl = labelParts.length ? `  <text x="${TOTAL_W / 2}" y="13" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="middle">${labelParts.join(' · ')}</text>` : '';
+      
+      let cx = 0;
+      const headerCells = ['N', 'E', 'S', 'W'].map((label, i) => {
+        const w = 46;
+        const result = `  <rect x="${cx}" y="${labelH}" width="${w}" height="${HEADER_H}" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="0.5"/>\n` +
+          `  <text x="${cx + w / 2}" y="${labelH + HEADER_H - 6}" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#374151" text-anchor="middle">${label}</text>`;
+        cx += w;
+        return result;
+      }).join('\n');
+
+      const dataCells = rounds.map((round, ri) => {
+        let cx = 0;
+        const ry = labelH + HEADER_H + ri * ROW_H;
+        const bg = ri % 2 === 0 ? 'white' : '#f9fafb';
+        const values = [round.north || '—', round.east || '—', round.south || '—', round.west || '—'];
+        return ['N', 'E', 'S', 'W'].map((_, ci) => {
+          const w = 46;
+          const result = `  <rect x="${cx}" y="${ry}" width="${w}" height="${ROW_H}" fill="${bg}" stroke="#e5e7eb" stroke-width="0.5"/>\n` +
+            `  <text x="${cx + w / 2}" y="${ry + ROW_H - 4}" font-family="'Courier New',monospace" font-size="11" fill="#374151" text-anchor="middle">${x(values[ci])}</text>`;
+          cx += w;
+          return result;
+        }).join('\n');
+      }).join('\n');
+
+      return [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${TOTAL_W}" height="${totalH}" class="bridge-bidding-svg" style="border: 1px solid #e5e7eb; border-radius: 4px;">`,
+        titleEl,
+        headerCells,
+        dataCells,
+        '</svg>'
+      ].filter(Boolean).join('\n');
+    }
+
+    // Inline the bridge extension
     const BRIDGE_TYPES = new Set(['hand', 'hands', 'deal', 'auction', 'bidding', 'pairbidding']);
-    const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
-    const SUIT_CLS = { S: 'bridge-suit-spade', H: 'bridge-suit-heart', D: 'bridge-suit-diamond', C: 'bridge-suit-club' };
 
     function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function sp(c) { return c.split('').join(' '); }
 
     function cardsFromString(s) {
       const p = s.split('.');
@@ -114,14 +214,6 @@
       const d = ['N','E','S','W'][(n-1)%4];
       const v = ['None','NS','EW','All','NS','EW','All','None','EW','All','None','NS','All','None','NS','EW'];
       return { dealer: d, vul: v[(n-1)%16] };
-    }
-
-    function renderHand(data) {
-      const label = data.label ? `<div class="bridge-hand-label">${esc(data.label)}</div>` : '';
-      const rows = ['S','H','D','C'].map(s =>
-        `<div class="bridge-hand-row"><span class="${SUIT_CLS[s]}">${SUIT_SYM[s]}</span> <span class="bridge-cards">${sp(data.cards[s])||'—'}</span></div>`
-      ).join('');
-      return `<div class="bridge-hand">${label}${rows}</div>`;
     }
 
     function parseBridgeBlock(type, raw) {
@@ -202,86 +294,10 @@
       return data;
     }
 
-    function renderDeal(data) {
-      const view = data.view ?? 'all';
-      const info = data.boardNumber != null ? boardInfo(data.boardNumber) : null;
-      const dealer = info?.dealer ?? (data.dealer??'N');
-      const vul = info?.vul ?? 'None';
-      const labelEl = data.label ? `<div class="bridge-deal-label">${esc(data.label)}</div>` : '';
-      const sub = data.boardNumber!=null ? `Board ${data.boardNumber} · Dealer: ${{N:'North',E:'East',S:'South',W:'West'}[dealer]}` : '';
-      const subEl = sub ? `<div class="bridge-deal-subtitle">${esc(sub)}</div>` : '';
-
-      let handsEl;
-      if (view==='ns') handsEl=`<div class="bridge-deal-ns">${renderHand({label:'North',cards:data.hands.North})}${renderHand({label:'South',cards:data.hands.South})}</div>`;
-      else if (view==='ew') handsEl=`<div class="bridge-deal-ew">${renderHand({label:'West',cards:data.hands.West})}${renderHand({label:'East',cards:data.hands.East})}</div>`;
-      else handsEl=`<div class="bridge-deal-compass"><div class="bridge-deal-n">${renderHand({label:'North',cards:data.hands.North})}</div><div class="bridge-deal-ew-row"><div class="bridge-deal-w">${renderHand({label:'West',cards:data.hands.West})}</div><div class="bridge-deal-e">${renderHand({label:'East',cards:data.hands.East})}</div></div><div class="bridge-deal-s">${renderHand({label:'South',cards:data.hands.South})}</div></div>`;
-
-      let bidEl = '';
-      if (data.bidding?.length) {
-        const di = ['N','E','S','W'].indexOf(dealer);
-        const nsV=vul==='NS'||vul==='All', ewV=vul==='EW'||vul==='All';
-        const h=['N','E','S','W'].map(s=>`<th class="${['N','S'].includes(s)?nsV?'bridge-vul':'bridge-nonvul':ewV?'bridge-vul':'bridge-nonvul'}">${s}</th>`).join('');
-        const r=data.bidding.map((r,ri)=>`<tr>${['north','east','south','west'].map((k,ci)=>`<td>${esc(ri===0&&ci<di?'—':r[k]||'')}</td>`).join('')}</tr>`).join('');
-        bidEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
-      }
-      let annEl = '';
-      if (data.showAnnotations!==false && data.annotations?.length) {
-        const r=data.annotations.map(a=>`<tr><td class="bridge-ann-bid">${esc(a.bid)}</td><td>${esc(a.meaning)}</td></tr>`).join('');
-        annEl=`<div class="bridge-annotations"><table><thead><tr><th>Bid</th><th>Meaning</th></tr></thead><tbody>${r}</tbody></table></div>`;
-      }
-      return `<div class="bridge-block bridge-deal">${labelEl}${subEl}<div class="bridge-deal-body">${handsEl}${bidEl?`<div class="bridge-deal-auction">${bidEl}${annEl}</div>`:''}</div></div>`;
-    }
-
-    function renderAuction(data) {
-      const seats=(data.seats??'NESW').toUpperCase();
-      const isPair=seats==='NS'||seats==='EW';
-      const labelEl=data.label?`<div class="bridge-auction-label">${esc(data.label)}</div>`:'';
-      let info={dealer:'N',vul:'None'};
-      if(!isPair&&data.boardNumber!=null)info=boardInfo(data.boardNumber);
-      else info={dealer:data.dealer??'N',vul:data.vul??'None'};
-
-      let handsEl='';
-      if(isPair&&(data.hand1||data.hand2)){
-        const s1=seats==='EW'?'East':'North',s2=seats==='EW'?'West':'South';
-        handsEl='<div class="bridge-auction-hands">';
-        if(data.hand1)handsEl+=renderHand({label:s1,cards:data.hand1});
-        if(data.hand2)handsEl+=renderHand({label:s2,cards:data.hand2});
-        handsEl+='</div>';
-      }
-
-      let tableEl;
-      if(isPair){
-        const cols=seats==='NS'?['north','south']:['east','west'];
-        const labels=seats==='NS'?['N','S']:['E','W'];
-        const h=labels.map(l=>`<th class="bridge-nonvul">${l}</th>`).join('');
-        const r=data.rounds.map(r=>`<tr>${cols.map(k=>`<td>${esc(r[k]||'')}</td>`).join('')}</tr>`).join('');
-        tableEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
-      } else {
-        const di=['N','E','S','W'].indexOf(info.dealer);
-        const nsV=info.vul==='NS'||info.vul==='All',ewV=info.vul==='EW'||info.vul==='All';
-        const h=['N','E','S','W'].map(s=>`<th class="${['N','S'].includes(s)?nsV?'bridge-vul':'bridge-nonvul':ewV?'bridge-vul':'bridge-nonvul'}">${s}</th>`).join('');
-        const r=data.rounds.map((r,ri)=>`<tr>${['north','east','south','west'].map((k,ci)=>`<td>${esc(ri===0&&ci<di?'—':r[k]||'')}</td>`).join('')}</tr>`).join('');
-        tableEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
-      }
-
-      let annEl='';
-      if(data.annotations?.length){
-        const r=data.annotations.map(a=>`<tr><td class="bridge-ann-bid">${esc(a.bid)}</td><td>${esc(a.meaning)}</td></tr>`).join('');
-        annEl=`<div class="bridge-annotations"><table><thead><tr><th>Bid</th><th>Meaning</th></tr></thead><tbody>${r}</tbody></table></div>`;
-      }
-      let nextEl='';
-      if(data.nextBids?.length){
-        const nl=data.nextBidsLabel??'Continuations';
-        const r=data.nextBids.map(n=>`<tr><td class="bridge-ann-bid">${esc(n.bid)}</td><td>${esc(n.meaning)}</td></tr>`).join('');
-        nextEl=`<div class="bridge-next-bids"><div class="bridge-next-label">${esc(nl)}</div><table><tbody>${r}</tbody></table></div>`;
-      }
-      return `<div class="bridge-block bridge-auction">${labelEl}<div class="bridge-auction-body">${handsEl}<div>${tableEl}${annEl}</div></div>${nextEl}</div>`;
-    }
-
     function renderHands(data) {
       const title = data.title ? `<div class="bridge-hands-title">${esc(data.title)}</div>` : '';
-      const hands = data.hands.map(h => renderHand(h)).join('');
-      return `<div class="bridge-hands">${title}<div class="bridge-hands-grid">${hands}</div></div>`;
+      const hands = data.hands.map(h => renderHandSvg(h)).join('');
+      return `<div class="bridge-hands" style="display: flex; flex-wrap: wrap; gap: 12px;">${title}${hands}</div>`;
     }
 
     // Register extension
@@ -293,10 +309,22 @@
           try {
             const data = parseBridgeBlock(lang, token.text);
             switch (lang) {
-              case 'hand': return renderHand(data);
+              case 'hand': return renderHandSvg(data);
               case 'hands': return renderHands(data);
-              case 'deal': return renderDeal(data);
-              case 'auction': case 'bidding': case 'pairbidding': return renderAuction(data);
+              case 'deal': {
+                const dealer = data.dealer ?? 'N';
+                const svg = renderDealSvg({ label: data.label, dealer, hands: data.hands });
+                let bidding = '';
+                if (data.bidding?.length) {
+                  const rounds = data.bidding.map(r => ({ north: r.north || '', south: r.south || '', east: r.east || '', west: r.west || '' }));
+                  bidding = renderBiddingSvg({ dealer, rounds });
+                }
+                return `<div class="bridge-block bridge-deal" style="margin: 12px 0;">${svg}${bidding ? `<div style="margin-top: 12px;">${bidding}</div>` : ''}</div>`;
+              }
+              case 'auction': case 'bidding': case 'pairbidding': {
+                const rounds = data.rounds.map(r => ({ north: r.north || '', south: r.south || '', east: r.east || '', west: r.west || '' }));
+                return `<div class="bridge-block bridge-auction" style="margin: 12px 0;">${renderBiddingSvg({ label: data.label, dealer: data.dealer, rounds })}</div>`;
+              }
             }
           } catch (e) {
             return `<div class="bridge-error">Failed to render ${lang} block: ${e.message}</div>`;

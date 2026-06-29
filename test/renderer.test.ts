@@ -8,10 +8,12 @@ const handData = {
 
 describe('renderer', () => {
   it('renders a single hand', () => {
-    const html = renderHand(handData);
-    expect(html).toContain('<div class="bridge-hand-label">North</div>');
-    expect(html).toContain('A K Q');
-    expect(html).toContain('J 5 4 3');
+    const svg = renderHand(handData);
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('class="bridge-hand-svg"');
+    expect(svg).toContain('North');
+    expect(svg).toContain('AKQ');
+    expect(svg).toContain('J543');
   });
 
   it('renders a deal with compass layout', () => {
@@ -29,11 +31,11 @@ describe('renderer', () => {
       ],
       annotations: [{ bid: '1NT', meaning: '15-17 balanced' }]
     };
-    const html = renderDeal(data as any);
-    expect(html).toContain('Example deal');
-    expect(html).toContain('Board 3');
-    expect(html).toContain('1NT');
-    expect(html).toContain('15-17 balanced');
+    const svg = renderDeal(data as any);
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('class="bridge-deal-svg"');
+    expect(svg).toContain('Example deal');
+    expect(svg).toContain('1NT');
   });
 
   it('renders a pair auction with next bids', () => {
@@ -51,10 +53,11 @@ describe('renderer', () => {
         { bid: '2H', meaning: '4+ hearts' }
       ]
     };
-    const html = renderAuction(data as any);
-    expect(html).toContain('Stayman');
-    expect(html).toContain('2D');
-    expect(html).toContain('No 4-card major');
-    expect(html).toContain('1NT');
+    const svg = renderAuction(data as any);
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('class="bridge-bidding-svg"');
+    expect(svg).toContain('Stayman');
+    expect(svg).toContain('2C');
+    expect(svg).toContain('1NT');
   });
 });
