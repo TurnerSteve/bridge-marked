@@ -1,0 +1,45 @@
+{
+  "name": "marked-bridge",
+  "version": "0.1.0",
+  "description": "A marked extension for rendering bridge hands, deals, and auctions in Markdown",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && cp src/style.css dist/style.css",
+    "dev": "npx serve demo -p 3333",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "marked",
+    "markdown",
+    "bridge",
+    "cards",
+    "auction",
+    "deal",
+    "hand"
+  ],
+  "author": "Stephen Turner",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TurnerSteve/bridge-marked.git"
+  },
+  "peerDependencies": {
+    "marked": ">=9.0.0"
+  },
+  "devDependencies": {
+    "marked": "^15.0.0",
+    "typescript": "^5.7.0"
+  }
+}

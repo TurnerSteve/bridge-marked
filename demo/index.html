@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>marked-bridge — Live Demo</title>
+  <link rel="stylesheet" href="../src/style.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #052e16;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header a { color: #86efac; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .container {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+    .editor-pane, .preview-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .pane-header {
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+    textarea {
+      flex: 1;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+    .preview-pane {
+      border-left: 1px solid #e5e7eb;
+    }
+    .preview-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .preview-content h1 { font-size: 1.5em; margin: 0.5em 0 0.3em; }
+    .preview-content h2 { font-size: 1.2em; margin: 0.8em 0 0.3em; color: #374151; }
+    .preview-content p { margin: 0.5em 0; }
+    .preview-content ul { margin: 0.5em 0; padding-left: 1.5em; }
+    .preview-content code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }
+    .preview-content a { color: #2563eb; }
+    .preview-content .bridge-block { margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>marked-bridge</h1>
+    <span>Live Demo — Bridge Markdown Extension</span>
+    <a href="https://github.com/TurnerSteve/bridge-marked" target="_blank">GitHub</a>
+  </header>
+  <div class="container">
+    <div class="editor-pane">
+      <div class="pane-header">Markdown</div>
+      <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+    <div class="preview-pane">
+      <div class="pane-header">Preview</div>
+      <div class="preview-content" id="preview"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { marked } from 'https://cdn.jsdelivr.net/npm/marked@15/lib/marked.esm.js';
+
+    // Inline the bridge extension (until published to npm)
+    const BRIDGE_TYPES = new Set(['hand', 'hands', 'deal', 'auction', 'bidding', 'pairbidding']);
+    const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
+    const SUIT_CLS = { S: 'bridge-suit-spade', H: 'bridge-suit-heart', D: 'bridge-suit-diamond', C: 'bridge-suit-club' };
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function sp(c) { return c.split('').join(' '); }
+
+    function cardsFromString(s) {
+      const p = s.split('.');
+      return { S: (p[0]??'').replace(/10/g,'T').toUpperCase(), H: (p[1]??'').replace(/10/g,'T').toUpperCase(), D: (p[2]??'').replace(/10/g,'T').toUpperCase(), C: (p[3]??'').replace(/10/g,'T').toUpperCase() };
+    }
+
+    function boardInfo(n) {
+      const d = ['N','E','S','W'][(n-1)%4];
+      const v = ['None','NS','EW','All','NS','EW','All','None','EW','All','None','NS','All','None','NS','EW'];
+      return { dealer: d, vul: v[(n-1)%16] };
+    }
+
+    function renderHand(data) {
+      const label = data.label ? `<div class="bridge-hand-label">${esc(data.label)}</div>` : '';
+      const rows = ['S','H','D','C'].map(s =>
+        `<div class="bridge-hand-row"><span class="${SUIT_CLS[s]}">${SUIT_SYM[s]}</span> <span class="bridge-cards">${sp(data.cards[s])||'—'}</span></div>`
+      ).join('');
+      return `<div class="bridge-hand">${label}${rows}</div>`;
+    }
+
+    function parseBridgeBlock(type, raw) {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('{')) return JSON.parse(trimmed);
+
+      const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+      function kv(line) { const m = line.match(/^([a-zA-Z]\w*)\s*:\s*(.*)$/); return m ? { key: m[1].toLowerCase(), value: m[2].trim() } : null; }
+
+      if (type === 'hand') {
+        const ci = trimmed.lastIndexOf(':');
+        if (ci === -1) return { cards: cardsFromString(trimmed) };
+        return { label: trimmed.slice(0,ci).trim(), cards: cardsFromString(trimmed.slice(ci+1).trim()) };
+      }
+
+      if (type === 'hands') {
+        const data = { hands: [] };
+        for (const line of lines) {
+          const k = kv(line);
+          if (k?.key === 'title') { data.title = k.value; continue; }
+          if (k?.key === 'perrow') { data.perRow = parseInt(k.value)||4; continue; }
+          const ci = line.lastIndexOf(':');
+          if (ci === -1) data.hands.push({ cards: cardsFromString(line) });
+          else data.hands.push({ label: line.slice(0,ci).trim(), cards: cardsFromString(line.slice(ci+1).trim()) });
+        }
+        return data;
+      }
+
+      if (type === 'deal') {
+        const data = { hands: { North:{S:'',H:'',D:'',C:''}, East:{S:'',H:'',D:'',C:''}, South:{S:'',H:'',D:'',C:''}, West:{S:'',H:'',D:'',C:''} } };
+        const bids = [];
+        for (const line of lines) {
+          const k = kv(line);
+          if (!k) { const t = line.split(/\s+/); if (t.length>=2) bids.push({north:t[0]??'',east:t[1]??'',south:t[2]??'',west:t[3]??''}); continue; }
+          switch(k.key) {
+            case 'label': data.label = k.value; break;
+            case 'board': data.boardNumber = parseInt(k.value); break;
+            case 'dealer': data.dealer = k.value.toUpperCase(); break;
+            case 'view': data.view = k.value; break;
+            case 'annotations': data.showAnnotations = k.value!=='off'&&k.value!=='false'; break;
+            case 'n': case 'north': data.hands.North = cardsFromString(k.value); break;
+            case 'e': case 'east': data.hands.East = cardsFromString(k.value); break;
+            case 's': case 'south': data.hands.South = cardsFromString(k.value); break;
+            case 'w': case 'west': data.hands.West = cardsFromString(k.value); break;
+            case 'ann': { const p=k.value.indexOf('|'); if(p!==-1){if(!data.annotations)data.annotations=[];data.annotations.push({bid:k.value.slice(0,p).trim(),meaning:k.value.slice(p+1).trim()});} break; }
+          }
+        }
+        if (bids.length) data.bidding = bids;
+        return data;
+      }
+
+      // auction / bidding / pairbidding
+      let seats = type==='pairbidding'?'NS':'NESW';
+      for (const line of lines) { const k=kv(line); if(k?.key==='seats'){seats=k.value.toUpperCase();break;} }
+      const data = { label:'', seats, rounds:[] };
+      for (const line of lines) {
+        const k = kv(line);
+        if (!k) {
+          const t = line.split(/\s+/);
+          if (seats==='NS') data.rounds.push({north:t[0]??'',east:'',south:t[1]??'',west:''});
+          else if (seats==='EW') data.rounds.push({north:'',east:t[0]??'',south:'',west:t[1]??''});
+          else data.rounds.push({north:t[0]??'',east:t[1]??'',south:t[2]??'',west:t[3]??''});
+          continue;
+        }
+        switch(k.key) {
+          case 'label': data.label=k.value; break;
+          case 'seats': data.seats=k.value.toUpperCase(); seats=data.seats; break;
+          case 'board': data.boardNumber=parseInt(k.value); break;
+          case 'dealer': data.dealer=k.value.toUpperCase(); break;
+          case 'vul': data.vul=k.value; break;
+          case 'n': case 'north': case 'h1': data.hand1=cardsFromString(k.value); break;
+          case 's': case 'south': case 'e': case 'east': case 'w': case 'west': case 'h2': data.hand2=cardsFromString(k.value); break;
+          case 'ann': { const p=k.value.indexOf('|'); if(p!==-1){if(!data.annotations)data.annotations=[];data.annotations.push({bid:k.value.slice(0,p).trim(),meaning:k.value.slice(p+1).trim()});} break; }
+          case 'nextlabel': data.nextBidsLabel=k.value; break;
+          case 'next': { const p=k.value.indexOf('|'); if(p!==-1){if(!data.nextBids)data.nextBids=[];data.nextBids.push({bid:k.value.slice(0,p).trim(),meaning:k.value.slice(p+1).trim()});} break; }
+        }
+      }
+      return data;
+    }
+
+    function renderDeal(data) {
+      const view = data.view ?? 'all';
+      const info = data.boardNumber != null ? boardInfo(data.boardNumber) : null;
+      const dealer = info?.dealer ?? (data.dealer??'N');
+      const vul = info?.vul ?? 'None';
+      const labelEl = data.label ? `<div class="bridge-deal-label">${esc(data.label)}</div>` : '';
+      const sub = data.boardNumber!=null ? `Board ${data.boardNumber} · Dealer: ${{N:'North',E:'East',S:'South',W:'West'}[dealer]}` : '';
+      const subEl = sub ? `<div class="bridge-deal-subtitle">${esc(sub)}</div>` : '';
+
+      let handsEl;
+      if (view==='ns') handsEl=`<div class="bridge-deal-ns">${renderHand({label:'North',cards:data.hands.North})}${renderHand({label:'South',cards:data.hands.South})}</div>`;
+      else if (view==='ew') handsEl=`<div class="bridge-deal-ew">${renderHand({label:'West',cards:data.hands.West})}${renderHand({label:'East',cards:data.hands.East})}</div>`;
+      else handsEl=`<div class="bridge-deal-compass"><div class="bridge-deal-n">${renderHand({label:'North',cards:data.hands.North})}</div><div class="bridge-deal-ew-row"><div class="bridge-deal-w">${renderHand({label:'West',cards:data.hands.West})}</div><div class="bridge-deal-e">${renderHand({label:'East',cards:data.hands.East})}</div></div><div class="bridge-deal-s">${renderHand({label:'South',cards:data.hands.South})}</div></div>`;
+
+      let bidEl = '';
+      if (data.bidding?.length) {
+        const di = ['N','E','S','W'].indexOf(dealer);
+        const nsV=vul==='NS'||vul==='All', ewV=vul==='EW'||vul==='All';
+        const h=['N','E','S','W'].map(s=>`<th class="${['N','S'].includes(s)?nsV?'bridge-vul':'bridge-nonvul':ewV?'bridge-vul':'bridge-nonvul'}">${s}</th>`).join('');
+        const r=data.bidding.map((r,ri)=>`<tr>${['north','east','south','west'].map((k,ci)=>`<td>${esc(ri===0&&ci<di?'—':r[k]||'')}</td>`).join('')}</tr>`).join('');
+        bidEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
+      }
+      let annEl = '';
+      if (data.showAnnotations!==false && data.annotations?.length) {
+        const r=data.annotations.map(a=>`<tr><td class="bridge-ann-bid">${esc(a.bid)}</td><td>${esc(a.meaning)}</td></tr>`).join('');
+        annEl=`<div class="bridge-annotations"><table><thead><tr><th>Bid</th><th>Meaning</th></tr></thead><tbody>${r}</tbody></table></div>`;
+      }
+      return `<div class="bridge-block bridge-deal">${labelEl}${subEl}<div class="bridge-deal-body">${handsEl}${bidEl?`<div class="bridge-deal-auction">${bidEl}${annEl}</div>`:''}</div></div>`;
+    }
+
+    function renderAuction(data) {
+      const seats=(data.seats??'NESW').toUpperCase();
+      const isPair=seats==='NS'||seats==='EW';
+      const labelEl=data.label?`<div class="bridge-auction-label">${esc(data.label)}</div>`:'';
+      let info={dealer:'N',vul:'None'};
+      if(!isPair&&data.boardNumber!=null)info=boardInfo(data.boardNumber);
+      else info={dealer:data.dealer??'N',vul:data.vul??'None'};
+
+      let handsEl='';
+      if(isPair&&(data.hand1||data.hand2)){
+        const s1=seats==='EW'?'East':'North',s2=seats==='EW'?'West':'South';
+        handsEl='<div class="bridge-auction-hands">';
+        if(data.hand1)handsEl+=renderHand({label:s1,cards:data.hand1});
+        if(data.hand2)handsEl+=renderHand({label:s2,cards:data.hand2});
+        handsEl+='</div>';
+      }
+
+      let tableEl;
+      if(isPair){
+        const cols=seats==='NS'?['north','south']:['east','west'];
+        const labels=seats==='NS'?['N','S']:['E','W'];
+        const h=labels.map(l=>`<th class="bridge-nonvul">${l}</th>`).join('');
+        const r=data.rounds.map(r=>`<tr>${cols.map(k=>`<td>${esc(r[k]||'')}</td>`).join('')}</tr>`).join('');
+        tableEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
+      } else {
+        const di=['N','E','S','W'].indexOf(info.dealer);
+        const nsV=info.vul==='NS'||info.vul==='All',ewV=info.vul==='EW'||info.vul==='All';
+        const h=['N','E','S','W'].map(s=>`<th class="${['N','S'].includes(s)?nsV?'bridge-vul':'bridge-nonvul':ewV?'bridge-vul':'bridge-nonvul'}">${s}</th>`).join('');
+        const r=data.rounds.map((r,ri)=>`<tr>${['north','east','south','west'].map((k,ci)=>`<td>${esc(ri===0&&ci<di?'—':r[k]||'')}</td>`).join('')}</tr>`).join('');
+        tableEl=`<table class="bridge-auction-table"><thead><tr>${h}</tr></thead><tbody>${r}</tbody></table>`;
+      }
+
+      let annEl='';
+      if(data.annotations?.length){
+        const r=data.annotations.map(a=>`<tr><td class="bridge-ann-bid">${esc(a.bid)}</td><td>${esc(a.meaning)}</td></tr>`).join('');
+        annEl=`<div class="bridge-annotations"><table><thead><tr><th>Bid</th><th>Meaning</th></tr></thead><tbody>${r}</tbody></table></div>`;
+      }
+      let nextEl='';
+      if(data.nextBids?.length){
+        const nl=data.nextBidsLabel??'Continuations';
+        const r=data.nextBids.map(n=>`<tr><td class="bridge-ann-bid">${esc(n.bid)}</td><td>${esc(n.meaning)}</td></tr>`).join('');
+        nextEl=`<div class="bridge-next-bids"><div class="bridge-next-label">${esc(nl)}</div><table><tbody>${r}</tbody></table></div>`;
+      }
+      return `<div class="bridge-block bridge-auction">${labelEl}<div class="bridge-auction-body">${handsEl}<div>${tableEl}${annEl}</div></div>${nextEl}</div>`;
+    }
+
+    function renderHands(data) {
+      const title = data.title ? `<div class="bridge-hands-title">${esc(data.title)}</div>` : '';
+      const hands = data.hands.map(h => renderHand(h)).join('');
+      return `<div class="bridge-hands">${title}<div class="bridge-hands-grid">${hands}</div></div>`;
+    }
+
+    // Register extension
+    marked.use({
+      renderer: {
+        code(token) {
+          const lang = token.lang?.toLowerCase();
+          if (!lang || !BRIDGE_TYPES.has(lang)) return false;
+          try {
+            const data = parseBridgeBlock(lang, token.text);
+            switch (lang) {
+              case 'hand': return renderHand(data);
+              case 'hands': return renderHands(data);
+              case 'deal': return renderDeal(data);
+              case 'auction': case 'bidding': case 'pairbidding': return renderAuction(data);
+            }
+          } catch (e) {
+            return `<div class="bridge-error">Failed to render ${lang} block: ${e.message}</div>`;
+          }
+          return false;
+        }
+      }
+    });
+
+    // Load example and wire up
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+
+    function render() {
+      preview.innerHTML = marked.parse(editor.value);
+    }
+
+    editor.addEventListener('input', render);
+
+    // Load example.md
+    fetch('example.md')
+      .then(r => r.text())
+      .then(text => { editor.value = text; render(); })
+      .catch(() => { editor.value = '# Type bridge markdown here\n\n```hand\nNorth: AKQ.432.876.J543\n```'; render(); });
+  </script>
+</body>
+</html>

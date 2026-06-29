@@ -1,0 +1,197 @@
+/* marked-bridge — default stylesheet */
+
+:root {
+  --bridge-spade: #2563eb;
+  --bridge-heart: #dc2626;
+  --bridge-diamond: #ea580c;
+  --bridge-club: #16a34a;
+  --bridge-vul: #dc2626;
+  --bridge-nonvul: #16a34a;
+  --bridge-bg: #ffffff;
+  --bridge-border: #e5e7eb;
+  --bridge-muted: #6b7280;
+}
+
+.bridge-suit-spade { color: var(--bridge-spade); }
+.bridge-suit-heart { color: var(--bridge-heart); }
+.bridge-suit-diamond { color: var(--bridge-diamond); }
+.bridge-suit-club { color: var(--bridge-club); }
+
+/* Hand */
+.bridge-hand {
+  display: inline-flex;
+  flex-direction: column;
+  border: 1px solid var(--bridge-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--bridge-bg);
+  font-size: 0.875rem;
+}
+.bridge-hand-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--bridge-muted);
+  margin-bottom: 2px;
+}
+.bridge-hand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.4;
+}
+.bridge-hand-row span:first-child {
+  font-weight: 700;
+  width: 1em;
+  text-align: center;
+}
+.bridge-cards {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.05em;
+}
+
+/* Hands grid */
+.bridge-hands-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+}
+.bridge-hands-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Deal */
+.bridge-deal {
+  display: inline-flex;
+  flex-direction: column;
+  border: 1px solid var(--bridge-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: var(--bridge-bg);
+}
+.bridge-deal-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--bridge-muted);
+}
+.bridge-deal-subtitle {
+  font-size: 0.7rem;
+  color: var(--bridge-muted);
+  margin-bottom: 8px;
+}
+.bridge-deal-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.bridge-deal-compass {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.bridge-deal-ew-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+.bridge-deal-ns {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.bridge-deal-ew {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* Auction table */
+.bridge-auction {
+  display: inline-flex;
+  flex-direction: column;
+  border: 1px solid var(--bridge-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: var(--bridge-bg);
+}
+.bridge-auction-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--bridge-muted);
+  margin-bottom: 4px;
+}
+.bridge-auction-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bridge-auction-hands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bridge-auction-table {
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.bridge-auction-table th,
+.bridge-auction-table td {
+  border: 1px solid var(--bridge-border);
+  padding: 3px 10px;
+  text-align: center;
+}
+.bridge-auction-table th {
+  font-weight: 700;
+  color: white;
+}
+.bridge-vul { background-color: var(--bridge-vul); }
+.bridge-nonvul { background-color: var(--bridge-nonvul); }
+
+/* Annotations */
+.bridge-annotations {
+  margin-top: 6px;
+}
+.bridge-annotations table {
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+.bridge-annotations th,
+.bridge-annotations td {
+  border: 1px solid var(--bridge-border);
+  padding: 2px 8px;
+  text-align: left;
+}
+.bridge-annotations th {
+  font-weight: 600;
+  color: var(--bridge-muted);
+  background: #f9fafb;
+}
+.bridge-ann-bid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Next bids / continuations */
+.bridge-next-bids {
+  margin-top: 8px;
+}
+.bridge-next-label {
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--bridge-muted);
+  margin-bottom: 2px;
+}
+
+/* Error */
+.bridge-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  padding: 8px;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  background: #fef2f2;
+}
