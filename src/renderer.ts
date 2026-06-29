@@ -109,9 +109,10 @@ function renderAuctionTable(rounds: BiddingRound[], dealer: string, vul: string)
     return `<th class="${vulClass}">${s}</th>`;
   }).join('');
 
+  const cols: Array<keyof BiddingRound> = ['north', 'east', 'south', 'west'];
   const rows = rounds.map((r, ri) => {
-    const cells = ['north', 'east', 'south', 'west'].map((k, ci) => {
-      let val = (r as Record<string, string>)[k] || '';
+    const cells = cols.map((k, ci) => {
+      let val = r[k] || '';
       if (ri === 0 && ci < dealerIdx) val = '—';
       return `<td>${esc(val)}</td>`;
     }).join('');
@@ -155,11 +156,11 @@ export function renderAuction(data: AuctionData): string {
 
   let tableEl: string;
   if (isPair) {
-    const cols = seats === 'NS' ? ['north', 'south'] : ['east', 'west'];
+    const cols: Array<keyof BiddingRound> = seats === 'NS' ? ['north', 'south'] : ['east', 'west'];
     const colLabels = seats === 'NS' ? ['N', 'S'] : ['E', 'W'];
     const headers = colLabels.map(l => `<th class="bridge-nonvul">${l}</th>`).join('');
     const rows = data.rounds.map(r => {
-      const cells = cols.map(k => `<td>${esc((r as Record<string, string>)[k] || '')}</td>`).join('');
+      const cells = cols.map(k => `<td>${esc(r[k] || '')}</td>`).join('');
       return `<tr>${cells}</tr>`;
     }).join('');
     tableEl = `<table class="bridge-auction-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
