@@ -193,18 +193,88 @@
       ].filter(Boolean).join('\n');
     }
 
+    function renderAnnotations(annotations) {
+      if (!annotations?.length) return '';
+      const rows = annotations.map(a =>
+        `      <tr><td class="bridge-ann-bid">${x(a.bid)}</td><td>${x(a.meaning)}</td></tr>`
+      ).join('');
+      return `<div class="bridge-annotations"><div class="bridge-annotations-title">Auction explanation</div>` +
+        `<table><thead><tr><th>Alert</th><th>Meaning</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function renderNextBids(nextBids, label) {
+      if (!nextBids?.length) return '';
+      const title = x(label || 'Continuations');
+      const rows = nextBids.map(n =>
+        `      <tr><td class="bridge-ann-bid">${x(n.bid)}</td><td>${x(n.meaning)}</td></tr>`
+      ).join('');
+      return `<div class="bridge-next-bids"><div class="bridge-next-bids-title">${title}</div>` +
+        `<table><thead><tr><th>Bid</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function renderDetailTable(input) {
+      const { offsetX, y, width, title, headerLeft, headerRight, rows } = input;
+      const titleH = 18;
+      const headerH = 22;
+      const rowH = 18;
+      const bodyH = rows.length * rowH;
+      const leftW = 56;
+      const rightW = width - leftW;
+      const elements = [];
+      elements.push(`  <text x="${offsetX + 8}" y="${y + 13}" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#374151">${x(title)}</text>`);
+      elements.push(`  <rect x="${offsetX}" y="${y + titleH}" width="${width}" height="${headerH}" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="0.5"/>`);
+      elements.push(`  <text x="${offsetX + leftW / 2}" y="${y + titleH + headerH - 6}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">${x(headerLeft)}</text>`);
+      elements.push(`  <text x="${offsetX + leftW + rightW / 2}" y="${y + titleH + headerH - 6}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">${x(headerRight)}</text>`);
+      rows.forEach((row, ri) => {
+        const ry = y + titleH + headerH + ri * rowH;
+        elements.push(`  <rect x="${offsetX}" y="${ry}" width="${width}" height="${rowH}" fill="${ri % 2 === 0 ? 'white' : '#f9fafb'}" stroke="#e5e7eb" stroke-width="0.5"/>`);
+        elements.push(`  <text x="${offsetX + 8}" y="${ry + rowH - 4}" font-family="'Courier New',monospace" font-size="11" fill="#374151">${x(row.left)}</text>`);
+        elements.push(`  <text x="${offsetX + leftW + 8}" y="${ry + rowH - 4}" font-family="Arial,sans-serif" font-size="11" fill="#374151">${x(row.right)}</text>`);
+      });
+      return { svg: `  <g>${elements.join('')}</g>`, height: titleH + headerH + rows.length * rowH + 12 };
+    }
+
     function renderBiddingSvg(input) {
       const rounds = input.rounds ?? [];
       const seats = (input.seats || 'NESW').toUpperCase();
-      const cols = seats === 'NS' ? ['N', 'S'] : seats === 'EW' ? ['E', 'W'] : ['N', 'E', 'S', 'W'];
+      const cols = seats === 'NS' ? ['N', 'S'] : seats === 'EW' ? ['W', 'E'] : ['N', 'E', 'S', 'W'];
       const TOTAL_W = cols.length * 46;
       const HEADER_H = 22, ROW_H = 18;
+      const detailWidth = input.annotations?.length || input.nextBids?.length ? 220 : 0;
+      const detailGap = detailWidth ? 18 : 0;
       const labelH = (input.label || input.dealer) ? 18 : 0;
       const totalH = labelH + HEADER_H + rounds.length * ROW_H + 2;
       const labelParts = [];
       if (input.label) labelParts.push(x(input.label));
       if (input.dealer) labelParts.push(`Dealer: ${x(input.dealer)}`);
-      const titleEl = labelParts.length ? `  <text x="${TOTAL_W / 2}" y="13" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="middle">${labelParts.join(' · ')}</text>` : '';
+      const detailTables = [];
+      if (input.annotations?.length) {
+        detailTables.push(renderDetailTable({
+          offsetX: 0,
+          y: 0,
+          width: detailWidth,
+          title: 'Auction explanation',
+          headerLeft: 'Alert',
+          headerRight: 'Meaning',
+          rows: input.annotations.map(a => ({ left: a.bid, right: a.meaning }))
+        }));
+      }
+      if (input.nextBids?.length) {
+        detailTables.push(renderDetailTable({
+          offsetX: 0,
+          y: 0,
+          width: detailWidth,
+          title: input.nextBidsLabel || 'Continuations',
+          headerLeft: 'Bid',
+          headerRight: 'Description',
+          rows: input.nextBids.map(n => ({ left: n.bid, right: n.meaning }))
+        }));
+      }
+      const detailsHeight = detailTables.length ? Math.max(...detailTables.map(t => t.height)) : 0;
+      const detailTotalWidth = detailTables.length ? detailTables.length * detailWidth + (detailTables.length - 1) * detailGap : 0;
+      const height = Math.max(totalH, detailsHeight);
+      const fullWidth = TOTAL_W + (detailTables.length ? detailGap : 0) + detailTotalWidth;
+      const titleEl = labelParts.length ? `  <text x="8" y="13" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#6b7280">${labelParts.join(' · ')}</text>` : '';
 
       let cx = 0;
       const headerCells = cols.map((label) => {
@@ -232,11 +302,17 @@
         }).join('\n');
       }).join('\n');
 
+      const detailsSvg = detailTables.map((table, i) => {
+        const offsetX = TOTAL_W + detailGap + i * (detailWidth + detailGap);
+        return `  <g transform="translate(${offsetX}, 0)">${table.svg}</g>`;
+      }).join('\n');
+
       return [
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${TOTAL_W}" height="${totalH}" class="bridge-bidding-svg" style="border: 1px solid #e5e7eb; border-radius: 4px;">`,
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${fullWidth}" height="${height}" class="bridge-bidding-svg" style="border: 1px solid #e5e7eb; border-radius: 4px;">`,
         titleEl,
         headerCells,
         dataCells,
+        detailsSvg,
         '</svg>'
       ].filter(Boolean).join('\n');
     }
@@ -364,7 +440,19 @@
               }
               case 'auction': case 'bidding': case 'pairbidding': {
                 const rounds = data.rounds.map(r => ({ north: r.north || '', south: r.south || '', east: r.east || '', west: r.west || '' }));
-                return `<div class="bridge-block bridge-auction" style="margin: 12px 0;">${renderBiddingSvg({ label: data.label, dealer: data.dealer, seats: data.seats, rounds })}</div>`;
+                const auctionSvg = renderBiddingSvg({
+                  label: data.label,
+                  dealer: data.dealer,
+                  seats: data.seats,
+                  rounds,
+                  annotations: data.annotations,
+                  nextBids: data.nextBids,
+                  nextBidsLabel: data.nextBidsLabel
+                });
+                return `<div class="bridge-block bridge-auction" style="margin: 12px 0;">` +
+                  `<div class="bridge-auction-body">` +
+                    `<div class="bridge-auction-table">${auctionSvg}</div>` +
+                  `</div></div>`;
               }
             }
           } catch (e) {

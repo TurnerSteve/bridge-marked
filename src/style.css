@@ -114,38 +114,50 @@
   flex-direction: column;
   border: 1px solid var(--bridge-border);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 18px 20px;
   background: var(--bridge-bg);
 }
 .bridge-auction-label {
   font-weight: 600;
   font-size: 0.75rem;
   color: var(--bridge-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .bridge-auction-body {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-}
-.bridge-auction-hands {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 24px;
 }
 .bridge-auction-table {
-  border-collapse: collapse;
-  font-size: 0.75rem;
+  display: inline-flex;
+}
+.bridge-auction-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 260px;
+  align-items: flex-start;
+}
+.bridge-auction-table svg,
+.bridge-auction-details > div {
+  border: 1px solid var(--bridge-border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--bridge-bg);
+}
+.bridge-auction-table svg {
+  display: block;
 }
 .bridge-auction-table th,
 .bridge-auction-table td {
   border: 1px solid var(--bridge-border);
-  padding: 3px 10px;
+  padding: 6px 14px;
   text-align: center;
 }
 .bridge-auction-table th {
   font-weight: 700;
   color: white;
+  background: #374151;
 }
 .bridge-vul { background-color: var(--bridge-vul); }
 .bridge-nonvul { background-color: var(--bridge-nonvul); }

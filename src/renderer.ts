@@ -15,15 +15,21 @@ function esc(s: string): string {
 
 function renderAnnotations(annotations?: { bid: string; meaning: string }[]): string {
   if (!annotations?.length) return '';
-  const items = annotations.map(a => `    <li><strong>${esc(a.bid)}</strong> — ${esc(a.meaning)}</li>`).join('');
-  return `<div class="bridge-annotations"><div class="bridge-annotations-title">Annotations</div><ul>${items}</ul></div>`;
+  const rows = annotations.map(a =>
+    `      <tr><td class="bridge-ann-bid">${esc(a.bid)}</td><td>${esc(a.meaning)}</td></tr>`
+  ).join('');
+  return `<div class="bridge-annotations"><div class="bridge-annotations-title">Auction explanation</div>` +
+    `<table><thead><tr><th>Alert</th><th>Meaning</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderNextBids(nextBids?: { bid: string; meaning: string }[], label?: string): string {
   if (!nextBids?.length) return '';
-  const title = esc(label ?? 'Continuation bids');
-  const items = nextBids.map(n => `    <li><strong>${esc(n.bid)}</strong> — ${esc(n.meaning)}</li>`).join('');
-  return `<div class="bridge-next-bids"><div class="bridge-next-bids-title">${title}</div><ul>${items}</ul></div>`;
+  const title = esc(label ?? 'Continuations');
+  const rows = nextBids.map(n =>
+    `      <tr><td class="bridge-ann-bid">${esc(n.bid)}</td><td>${esc(n.meaning)}</td></tr>`
+  ).join('');
+  return `<div class="bridge-next-bids"><div class="bridge-next-bids-title">${title}</div>` +
+    `<table><thead><tr><th>Bid</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ── Hand ─────────────────────────────────────────────────────────────────────
@@ -90,11 +96,11 @@ export function renderAuction(data: AuctionData): string {
     label: data.label,
     dealer: data.dealer,
     seats: data.seats,
-    rounds
+    rounds,
+    annotations: data.annotations,
+    nextBids: data.nextBids,
+    nextBidsLabel: data.nextBidsLabel
   });
 
-  const annEl = renderAnnotations(data.annotations);
-  const nextEl = renderNextBids(data.nextBids, data.nextBidsLabel);
-
-  return `<div class="bridge-block bridge-auction">${biddingSvg}${annEl}${nextEl}</div>`;
+  return `<div class="bridge-block bridge-auction"><div class="bridge-auction-body"><div class="bridge-auction-table">${biddingSvg}</div></div></div>`;
 }

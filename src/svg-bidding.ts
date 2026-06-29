@@ -17,6 +17,9 @@ export interface BiddingInput {
 	dealer?: string;
 	seats?: string;
 	rounds: BiddingRound[];
+	annotations?: { bid: string; meaning: string }[];
+	nextBids?: { bid: string; meaning: string }[];
+	nextBidsLabel?: string;
 }
 
 const DEALER_NAME: Record<string, string> = {
@@ -36,8 +39,8 @@ function seatColumns(seats?: string): Array<{ key: string; label: string; w: num
 	}
 	if (normalized === 'EW') {
 		return [
-			{ key: 'E', label: 'E', w: 46 },
-			{ key: 'W', label: 'W', w: 46 }
+			{ key: 'W', label: 'W', w: 46 },
+			{ key: 'E', label: 'E', w: 46 }
 		];
 	}
 	return [
@@ -54,6 +57,35 @@ function colX(idx: number, cols: Array<{ key: string; label: string; w: number }
 	return x;
 }
 
+function renderDetailTable(input: { offsetX: number; y: number; width: number; title: string; headerLeft: string; headerRight: string; rows: { left: string; right: string }[] }): { svg: string; height: number } {
+	const { offsetX, y, width, title, headerLeft, headerRight, rows } = input;
+	const titleH = 18;
+	const headerH = 22;
+	const rowH = 18;
+	const bodyH = rows.length * rowH;
+	const height = titleH + headerH + bodyH + 12;
+	const leftW = 56;
+	const rightW = width - leftW;
+
+	const titleEl = `  <text x="${offsetX + 8}" y="${y + 13}" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#374151">${x(title)}</text>`;
+	const headerEl = `  <rect x="${offsetX}" y="${y + titleH}" width="${width}" height="${headerH}" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="0.5"/>` +
+		`  <text x="${offsetX + leftW / 2}" y="${y + titleH + headerH - 6}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">${x(headerLeft)}</text>` +
+		`  <text x="${offsetX + leftW + rightW / 2}" y="${y + titleH + headerH - 6}" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">${x(headerRight)}</text>`;
+	const rowsEl = rows.map((row, ri) => {
+		const ry = y + titleH + headerH + ri * rowH;
+		return (
+			`  <rect x="${offsetX}" y="${ry}" width="${width}" height="${rowH}" fill="${ri % 2 === 0 ? 'white' : '#f9fafb'}" stroke="#e5e7eb" stroke-width="0.5"/>` +
+			`  <text x="${offsetX + 8}" y="${ry + rowH - 4}" font-family="'Courier New',monospace" font-size="11" fill="#374151">${x(row.left)}</text>` +
+			`  <text x="${offsetX + leftW + 8}" y="${ry + rowH - 4}" font-family="Arial,sans-serif" font-size="11" fill="#374151">${x(row.right)}</text>`
+		);
+		}).join('');
+
+	return {
+		height,
+		svg: `  <g>${titleEl}${headerEl}${rowsEl}</g>`
+	};
+}
+
 export function renderBiddingSvg(input: BiddingInput): string {
 	const rounds = input.rounds ?? [];
 	const cols = seatColumns(input.seats);
@@ -64,9 +96,39 @@ export function renderBiddingSvg(input: BiddingInput): string {
 	const labelParts: string[] = [];
 	if (input.label) labelParts.push(x(input.label));
 	if (input.dealer) labelParts.push(`Dealer: ${x(DEALER_NAME[input.dealer] ?? input.dealer)}`);
+
+	const detailWidth = input.annotations?.length || input.nextBids?.length ? 220 : 0;
+	const detailGap = detailWidth ? 18 : 0;
+	const detailTables: Array<{ svg: string; height: number }> = [];
+	if (input.annotations?.length) {
+		detailTables.push(renderDetailTable({
+			offsetX: 0,
+			y: 0,
+			width: detailWidth,
+			title: 'Auction explanation',
+			headerLeft: 'Alert',
+			headerRight: 'Meaning',
+			rows: input.annotations.map(a => ({ left: a.bid, right: a.meaning }))
+		}));
+	}
+	if (input.nextBids?.length) {
+		detailTables.push(renderDetailTable({
+			offsetX: 0,
+			y: 0,
+			width: detailWidth,
+			title: input.nextBidsLabel ?? 'Continuations',
+			headerLeft: 'Bid',
+			headerRight: 'Description',
+			rows: input.nextBids.map(n => ({ left: n.bid, right: n.meaning }))
+		}));
+	}
+	const detailsHeight = detailTables.length ? Math.max(...detailTables.map(t => t.height)) : 0;
+	const detailTotalWidth = detailTables.length ? detailTables.length * detailWidth + (detailTables.length - 1) * detailGap : 0;
+	const height = Math.max(totalH, detailsHeight);
+	const fullWidth = totalW + (detailTables.length ? detailGap : 0) + detailTotalWidth;
 	const titleEl = labelParts.length
-		? `  <text x="${totalW / 2}" y="13" font-family="Arial,sans-serif" font-size="11" ` +
-		  `font-weight="bold" fill="#6b7280" text-anchor="middle">${labelParts.join(' · ')}</text>`
+		? `  <text x="8" y="13" font-family="Arial,sans-serif" font-size="11" ` +
+		  `font-weight="bold" fill="#6b7280">${labelParts.join(' · ')}</text>`
 		: '';
 
 	// Header row
@@ -101,11 +163,19 @@ export function renderBiddingSvg(input: BiddingInput): string {
 		}).join('\n');
 	}).join('\n');
 
+	const detailsSvg = detailTables.map((table, i) => {
+		const isFirst = i === 0;
+		const isLast = i === detailTables.length - 1;
+		const offsetX = totalW + detailGap + i * (detailWidth + detailGap) + (isFirst ? 8 : 0) + (isLast ? -8 : 0);
+		return `  <g transform="translate(${offsetX}, 0)">${table.svg}</g>`;
+	}).join('\n');
+
 	return [
-		`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" class="bridge-bidding-svg">`,
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${fullWidth}" height="${height}" class="bridge-bidding-svg">`,
 		titleEl,
 		headerCells,
 		dataCells,
+		detailsSvg,
 		'</svg>'
 	].filter(Boolean).join('\n');
 }

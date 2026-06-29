@@ -129,9 +129,22 @@ function parseAuction(raw: string, defaultSeats = 'NESW'): AuctionData {
       case 'dealer': data.dealer = kv.value.toUpperCase(); break;
       case 'vul': data.vul = kv.value; break;
       case 'annplacement': data.annotationPlacement = kv.value === 'right' ? 'right' : 'below'; break;
-      case 'n': case 'north': case 'h1': data.hand1 = cardsFromString(kv.value); break;
-      case 's': case 'south': case 'e': case 'east': case 'w': case 'west': case 'h2':
-        data.hand2 = cardsFromString(kv.value); break;
+      case 'n': case 'north': case 'h1':
+        data.hand1 = cardsFromString(kv.value);
+        break;
+      case 's': case 'south': case 'h2':
+        data.hand2 = cardsFromString(kv.value);
+        break;
+      case 'e': case 'east':
+        if (seats === 'EW') {
+          data.hand1 = cardsFromString(kv.value);
+        } else {
+          data.hand2 = cardsFromString(kv.value);
+        }
+        break;
+      case 'w': case 'west':
+        data.hand2 = cardsFromString(kv.value);
+        break;
       case 'ann': {
         const pipe = kv.value.indexOf('|');
         if (pipe !== -1) {

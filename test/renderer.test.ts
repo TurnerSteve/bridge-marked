@@ -82,6 +82,22 @@ describe('renderer', () => {
     expect(ewSvg).not.toContain('>S</text>');
   });
 
+  it('renders EW partnership bidding with W as the first column', () => {
+    const data = {
+      label: 'Defense',
+      seats: 'EW',
+      rounds: [
+        { north: '', east: '1NT', south: '', west: 'pass' }
+      ]
+    };
+    const ewSvg = renderAuction(data as any);
+    const westIndex = ewSvg.indexOf('>W</text>');
+    const eastIndex = ewSvg.indexOf('>E</text>');
+    expect(westIndex).toBeGreaterThan(-1);
+    expect(eastIndex).toBeGreaterThan(-1);
+    expect(westIndex).toBeLessThan(eastIndex);
+  });
+
   it('renders a pair auction with next bids', () => {
     const data = {
       label: 'Stayman',
@@ -103,5 +119,24 @@ describe('renderer', () => {
     expect(svg).toContain('Stayman');
     expect(svg).toContain('2C');
     expect(svg).toContain('1NT');
+  });
+
+  it('renders auction annotations and continuations tables to the right', () => {
+    const data = {
+      label: 'Alerts',
+      seats: 'EW',
+      rounds: [
+        { north: '', east: '1NT', south: '', west: 'pass' },
+        { north: '', east: '?', south: '', west: '' }
+      ],
+      annotations: [{ bid: '1NT', meaning: '15-17 balanced' }],
+      nextBids: [{ bid: '2D', meaning: 'No 4-card major' }]
+    };
+    const html = renderAuction(data as any);
+    expect(html).toContain('<svg');
+    expect(html).toContain('Auction explanation');
+    expect(html).toContain('Continuations');
+    expect(html).toContain('1NT');
+    expect(html).toContain('2D');
   });
 });

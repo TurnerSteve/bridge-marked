@@ -60,4 +60,21 @@ describe('parseBridgeBlock', () => {
       ]
     });
   });
+
+  it('parses auction annotations and continuations', () => {
+    const raw = 'label: Alerts\nseats: EW\nE: KQJ3.AT7.KQ2.J54\nW: A9876.654.A98.A3\n1NT pass\n?\nann: 1NT | 15-17 balanced\nnext: 2D | No 4-card major';
+    const data = parseBridgeBlock('auction', raw);
+    expect(data).toEqual({
+      label: 'Alerts',
+      seats: 'EW',
+      rounds: [
+        { north: '', east: '1NT', south: '', west: 'pass' },
+        { north: '', east: '?', south: '', west: '' }
+      ],
+      hand1: { S: 'KQJ3', H: 'AT7', D: 'KQ2', C: 'J54' },
+      hand2: { S: 'A9876', H: '654', D: 'A98', C: 'A3' },
+      annotations: [{ bid: '1NT', meaning: '15-17 balanced' }],
+      nextBids: [{ bid: '2D', meaning: 'No 4-card major' }]
+    });
+  });
 });
