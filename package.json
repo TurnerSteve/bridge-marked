@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc && cp src/style.css dist/style.css",
+    "build": "tsc && node -e \"import { copyFileSync } from 'fs'; copyFileSync('src/style.css', 'dist/style.css')\"",
     "dev": "npx serve demo -p 3333",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -31,17 +31,22 @@
     "deal",
     "hand"
   ],
-  "author": "Stephen Turner",
+  "author": "Stephen Turner <frawdo@bridgeforge.uk>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/TurnerSteve/bridge-marked.git"
   },
+  "bugs": {
+    "url": "https://github.com/TurnerSteve/bridge-marked/issues"
+  },
+  "homepage": "https://github.com/TurnerSteve/bridge-marked#readme",
   "peerDependencies": {
     "marked": ">=9.0.0"
   },
   "devDependencies": {
     "marked": "^15.0.0",
+    "serve": "^14.0.1",
     "typescript": "^5.7.0",
     "vitest": "^1.1.9"
   }

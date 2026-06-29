@@ -13,6 +13,19 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function renderAnnotations(annotations?: { bid: string; meaning: string }[]): string {
+  if (!annotations?.length) return '';
+  const items = annotations.map(a => `    <li><strong>${esc(a.bid)}</strong> — ${esc(a.meaning)}</li>`).join('');
+  return `<div class="bridge-annotations"><div class="bridge-annotations-title">Annotations</div><ul>${items}</ul></div>`;
+}
+
+function renderNextBids(nextBids?: { bid: string; meaning: string }[], label?: string): string {
+  if (!nextBids?.length) return '';
+  const title = esc(label ?? 'Continuation bids');
+  const items = nextBids.map(n => `    <li><strong>${esc(n.bid)}</strong> — ${esc(n.meaning)}</li>`).join('');
+  return `<div class="bridge-next-bids"><div class="bridge-next-bids-title">${title}</div><ul>${items}</ul></div>`;
+}
+
 // ── Hand ─────────────────────────────────────────────────────────────────────
 
 export function renderHand(data: HandData): string {
@@ -56,9 +69,10 @@ export function renderDeal(data: DealData): string {
     });
   }
 
-  const annEl = '';  // Annotations not yet supported in SVG render
+  const annEl = renderAnnotations(data.annotations);
+  const details = [biddingEl, annEl].filter(Boolean).join('');
 
-  return `<div class="bridge-block bridge-deal">${dealSvg}${biddingEl ? `<div class="bridge-deal-auction">${biddingEl}${annEl}</div>` : ''}</div>`;
+  return `<div class="bridge-block bridge-deal">${dealSvg}${details ? `<div class="bridge-deal-auction">${details}</div>` : ''}</div>`;
 }
 
 // ── Auction ──────────────────────────────────────────────────────────────────
@@ -77,5 +91,8 @@ export function renderAuction(data: AuctionData): string {
     rounds
   });
 
-  return `<div class="bridge-block bridge-auction">${biddingSvg}</div>`;
+  const annEl = renderAnnotations(data.annotations);
+  const nextEl = renderNextBids(data.nextBids, data.nextBidsLabel);
+
+  return `<div class="bridge-block bridge-auction">${biddingSvg}${annEl}${nextEl}</div>`;
 }

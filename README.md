@@ -1,14 +1,39 @@
 # marked-bridge
 
-A [marked](https://marked.js.org) extension for rendering bridge hands, deals, and auctions in Markdown.
+A lightweight `marked` extension for rendering bridge hands, deals, auctions, and partnership bidding directly in Markdown.
 
-Write bridge content in plain Markdown using fenced code blocks — `marked-bridge` renders them as formatted HTML with suit-coloured symbols, compass layouts, and vulnerability-aware auction tables.
+Built from BridgeForge bridge rendering code, it parses fenced bridge blocks and renders them as styled embedded SVG graphics for crisp, scalable output.
 
-## Quick Start
+## Table of Contents
+
+- [Features](#features)
+- [Install](#install)
+- [Usage](#usage)
+- [Live Demo](#live-demo)
+- [Supported Blocks](#supported-blocks)
+- [Card Notation](#card-notation)
+- [Styling](#styling)
+- [API](#api)
+- [License](#license)
+
+## Features
+
+- Renders bridge blocks as **embedded SVG**
+- Supports `hand`, `hands`, `deal`, `auction`, `bidding`, and `pairbidding`
+- Supports full deal compass layout plus NS/EW pair views
+- Supports auction tables, annotations, and continuation bids
+- Works as a `marked` renderer extension or via direct parser/renderer API
+- Ships with a default stylesheet and themeable CSS variables
+
+## Install
 
 ```bash
 npm install marked marked-bridge
 ```
+
+> `marked-bridge` requires `marked` `>=9.0.0` as a peer dependency.
+
+## Usage
 
 ```javascript
 import { marked } from 'marked';
@@ -18,46 +43,54 @@ import 'marked-bridge/style.css';
 marked.use(bridgeExtension());
 
 const html = marked.parse(`
-\`\`\`hand
+```hand
 North: AKQ.432.876.J543
-\`\`\`
+```
 `);
 ```
 
 ## Live Demo
 
-Open `demo/index.html` in a browser — no build step needed. Type bridge Markdown on the left, see the rendered output on the right.
+Run the demo locally:
 
 ```bash
-npx serve demo -p 3333
+npm run dev
 ```
 
-## Block Types
+Then open the URL shown in the terminal (default `http://localhost:3333`).
 
-### `hand` — Single Hand
+## Supported Blocks
 
-```
-\`\`\`hand
+### `hand`
+
+Render a single hand with optional label.
+
+```markdown
+```hand
 North: AKQ.432.876.J543
-\`\`\`
+```
 ```
 
-### `hands` — Multiple Hands
+### `hands`
 
-```
-\`\`\`hands
+Render multiple hands with optional title and row count.
+
+```markdown
+```hands
 title: Opening Leads
 perRow: 3
 West: KQ2.J876.A3.9754
 North: AJ9.AK5.QT2.KQJ3
 East: T8765.43.K987.86
-\`\`\`
+```
 ```
 
-### `deal` — Full Deal
+### `deal`
 
-```
-\`\`\`deal
+Render a full deal with four hands and optional bidding.
+
+```markdown
+```deal
 label: Example deal
 board: 3
 N: AKQ.432.876.J543
@@ -67,27 +100,35 @@ W: 32.65.AK9.AKQT2
 1NT pass 3NT pass
 pass pass
 ann: 1NT | 15-17 balanced
-\`\`\`
+```
 ```
 
-Supports three views: `all` (compass), `ns` (vertical pair), `ew` (horizontal pair).
+Supported `deal` views:
 
-### `auction` — Competitive Auction
+- `all` — compass layout (default)
+- `ns` — vertical pair view
+- `ew` — horizontal pair view
 
-```
-\`\`\`auction
+### `auction`
+
+Render competitive auctions with annotations.
+
+```markdown
+```auction
 label: Competitive auction
 board: 7
 1NT pass 3NT pass
 pass pass
 ann: 1NT | 15-17 balanced
-\`\`\`
+```
 ```
 
-### Partnership Bidding
+### `bidding` / `pairbidding`
 
-```
-\`\`\`auction
+Render partnership bidding and continuation tables.
+
+```markdown
+```auction
 label: Stayman
 seats: NS
 N: AKQ.J432.876.J54
@@ -98,16 +139,17 @@ ann: 1NT | 15-17 balanced
 ann: 2C | Stayman
 next: 2D | No 4-card major
 next: 2H | 4+ hearts
-\`\`\`
+```
 ```
 
 ## Card Notation
 
-PBN-style dot-separated suits: `Spades.Hearts.Diamonds.Clubs`
+Use PBN-style dot-separated suits: `Spades.Hearts.Diamonds.Clubs`
 
-- Ranks: `A K Q J T 9 8 7 6 5 4 3 2` (T = ten, `10` also accepted)
-- Void: empty segment, e.g. `AKQ..876.J543`
-- Wildcard: `x` for unspecified cards
+- Ranks: `A K Q J T 9 8 7 6 5 4 3 2`
+- `T` or `10` may be used for ten
+- Void suit: `AKQ..876.J543`
+- Wildcard: `x`
 
 ## Styling
 
@@ -123,14 +165,18 @@ Or use a `<link>` tag:
 <link rel="stylesheet" href="node_modules/marked-bridge/dist/style.css">
 ```
 
-Suit colours use CSS custom properties — override to match your theme:
+### Theme variables
+
+Override colors with CSS variables:
 
 ```css
 :root {
-  --bridge-spade: #2563eb;    /* blue */
-  --bridge-heart: #dc2626;    /* red */
-  --bridge-diamond: #ea580c;  /* orange */
-  --bridge-club: #16a34a;     /* green */
+  --bridge-spade: #2563eb;
+  --bridge-heart: #dc2626;
+  --bridge-diamond: #ea580c;
+  --bridge-club: #16a34a;
+  --bridge-vul: #dc2626;
+  --bridge-nonvul: #16a34a;
 }
 ```
 
@@ -139,14 +185,29 @@ Suit colours use CSS custom properties — override to match your theme:
 ```typescript
 import { bridgeExtension, parseBridgeBlock, renderHand, renderDeal, renderAuction } from 'marked-bridge';
 
-// Use as a marked extension
 marked.use(bridgeExtension());
 
-// Or use the parser/renderer directly
 const data = parseBridgeBlock('hand', 'North: AKQ.432.876.J543');
 const html = renderHand(data);
 ```
 
+### Exported symbols
+
+- `bridgeExtension(options?)`
+- `parseBridgeBlock(type, raw)`
+- `renderHand(data)`
+- `renderHands(data)`
+- `renderDeal(data)`
+- `renderAuction(data)`
+
+## Contact
+
+Built and maintained by Stephen Turner at BridgeForge.
+
+Email: <frawdo@bridgeforge.uk>
+
 ## License
 
 MIT
+
+Copyright © 2026 Stephen Turner / BridgeForge
