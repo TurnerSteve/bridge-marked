@@ -18,7 +18,9 @@
   "scripts": {
     "build": "tsc && cp src/style.css dist/style.css",
     "dev": "npx serve demo -p 3333",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "marked",
@@ -40,6 +42,7 @@
   },
   "devDependencies": {
     "marked": "^15.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^1.1.9"
   }
 }
