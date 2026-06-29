@@ -52,6 +52,7 @@ export function renderDeal(data: DealData): string {
   const dealSvg = renderDealSvg({
     label: data.label,
     dealer,
+    view: data.view,
     hands: data.hands
   });
 
@@ -88,6 +89,7 @@ export function renderAuction(data: AuctionData): string {
   const biddingSvg = renderBiddingSvg({
     label: data.label,
     dealer: data.dealer,
+    seats: data.seats,
     rounds
   });
 

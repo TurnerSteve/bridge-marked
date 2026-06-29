@@ -35,23 +35,23 @@ ann: 3NT | Quantitative raise
 
 ## NS Pair View
 
+This should show only North and South stacked vertically.
+
 ```deal
 label: Opening lead problem
 view: ns
 N: AKQ.432.876.J543
-E: 654.A987.QJ2.65
 S: J987.KQJ.543.987
-W: 32.65.AK9.AKQT2
 ```
 
 ## EW Pair View
 
+This should show only East and West side by side.
+
 ```deal
 label: Defensive problem
 view: ew
-N: AKQ.432.876.J543
 E: 654.A987.QJ2.65
-S: J987.KQJ.543.987
 W: 32.65.AK9.AKQT2
 ```
 
@@ -67,6 +67,8 @@ ann: 1NT | 15-17 balanced
 
 ## Partnership Bidding (NS)
 
+This should use a two-column layout for North and South only.
+
 ```auction
 label: Stayman
 seats: NS
@@ -79,6 +81,19 @@ ann: 2C | Stayman
 next: 2D | No 4-card major
 next: 2H | 4+ hearts
 next: 2S | 4+ spades
+```
+
+## Partnership Bidding (EW)
+
+This should use a two-column layout for East and West only.
+
+```auction
+label: Defensive auction
+seats: EW
+E: KQJ3.AT7.KQ2.J54
+W: A9876.654.A98.A3
+1NT pass
+2D pass
 ```
 
 ## Standard Markdown Still Works

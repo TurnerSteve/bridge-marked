@@ -38,6 +38,50 @@ describe('renderer', () => {
     expect(svg).toContain('1NT');
   });
 
+  it('renders NS and EW views as paired hands only', () => {
+    const sharedHands = {
+      North: { S: 'AKQ', H: '432', D: '876', C: 'J543' },
+      East: { S: '654', H: 'A987', D: 'QJ2', C: '65' },
+      South: { S: 'J987', H: 'KQJ', D: '543', C: '987' },
+      West: { S: '32', H: '65', D: 'AK9', C: 'AKQT2' }
+    };
+
+    const nsSvg = renderDeal({ view: 'ns', hands: sharedHands } as any);
+    expect(nsSvg).toContain('North');
+    expect(nsSvg).toContain('South');
+    expect(nsSvg).not.toContain('West');
+    expect(nsSvg).not.toContain('East');
+
+    const ewSvg = renderDeal({ view: 'ew', hands: sharedHands } as any);
+    expect(ewSvg).toContain('West');
+    expect(ewSvg).toContain('East');
+    expect(ewSvg).not.toContain('North');
+    expect(ewSvg).not.toContain('South');
+  });
+
+  it('renders partnership bidding using two seats for NS and EW', () => {
+    const data = {
+      label: 'Stayman',
+      seats: 'NS',
+      rounds: [
+        { north: '1NT', east: '', south: '2C', west: '' },
+        { north: '?', east: '', south: '', west: '' }
+      ]
+    };
+    const nsSvg = renderAuction(data as any);
+    expect(nsSvg).toContain('class="bridge-bidding-svg"');
+    expect(nsSvg).toContain('>N</text>');
+    expect(nsSvg).toContain('>S</text>');
+    expect(nsSvg).not.toContain('>E</text>');
+    expect(nsSvg).not.toContain('>W</text>');
+
+    const ewSvg = renderAuction({ ...data, seats: 'EW' } as any);
+    expect(ewSvg).toContain('>E</text>');
+    expect(ewSvg).toContain('>W</text>');
+    expect(ewSvg).not.toContain('>N</text>');
+    expect(ewSvg).not.toContain('>S</text>');
+  });
+
   it('renders a pair auction with next bids', () => {
     const data = {
       label: 'Stayman',
